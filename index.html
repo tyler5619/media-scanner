@@ -1,172 +1,109 @@
 <!doctype html>
-<html lang="en">
-<head>
+<html lang="en"><head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Media Library · Live Scanner v1.6.2</title>
+<title>Media Library · Fast Scanner v1.6.3</title>
 <script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#192638;background:#f2f5f9}
-*{box-sizing:border-box}body{margin:0}main{max-width:630px;margin:auto;padding:18px 14px 60px}
-h1{font-size:26px;letter-spacing:-.6px;margin:8px 0}h2{font-size:19px;margin:0 0 14px}h3{font-size:17px;margin:0 0 5px}
-p{line-height:1.45}.sub{color:#5d6b7a;margin:6px 0 14px}.tiny{font-size:12px;color:#687689;line-height:1.4}
-.panel{background:white;border:1px solid #e8edf2;border-radius:17px;padding:17px;margin:14px 0;box-shadow:0 2px 7px #1829410a}
-button,.buttonlink,select,input{font:inherit}button,.buttonlink{display:block;width:100%;border:0;padding:14px 13px;border-radius:10px;background:#1657a2;color:#fff;font-weight:700;text-align:center;text-decoration:none;cursor:pointer;margin:8px 0}
-button:disabled{opacity:.55;cursor:wait}.secondary{background:#eaf0f7;color:#253a55}.outline{background:#fff;border:1px solid #b6c7d9;color:#194b84}
-label{display:block;font-size:14px;font-weight:650;margin:12px 0 6px}
-input,select{display:block;width:100%;min-height:49px;padding:11px 12px;border-radius:10px;border:1px solid #bac7d5;background:#fff;color:#1b2b3d}
-#reader{width:100%;overflow:hidden;border-radius:11px}#reader video{max-width:100%;border-radius:10px}
+*{box-sizing:border-box}body{margin:0}main{max-width:630px;margin:auto;padding:18px 14px 65px}
+h1{font-size:27px;margin:8px 0;letter-spacing:-.6px}h2{font-size:20px;margin:0 0 12px}p{line-height:1.45}
+.sub,.hint{color:#566b83}.sub{margin:7px 0 16px}.hint{font-size:13px;margin:8px 0}
+.panel{background:#fff;border:1px solid #e2eaf1;border-radius:17px;margin:14px 0;padding:17px;box-shadow:0 2px 7px #1829410a}
+button,.buttonlink,select,input{font:inherit}button,.buttonlink{display:block;width:100%;border:0;border-radius:10px;padding:15px 12px;background:#195aa3;color:#fff;font-weight:700;text-align:center;text-decoration:none;cursor:pointer;margin:8px 0}
+.secondary{background:#e8eef6;color:#203a5b}.muted{color:#607087;font-size:13px}label{display:block;font-size:14px;font-weight:650;margin:12px 0 6px}
+input,select{width:100%;padding:12px;border:1px solid #b7c5d3;border-radius:10px;min-height:49px;background:#fff;color:#192638}
+.modeSelector{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.modeSelector button{background:#e8eef6;color:#273e5c;margin:0;padding:13px 4px;font-size:15px}.modeSelector button[aria-pressed=true]{background:#195aa3;color:white;outline:2px solid #8cb5e8}
+#reader{width:100%;overflow:hidden;border-radius:11px}#reader video{max-width:100%;border-radius:10px}.hidden{display:none!important}
 #scanState{min-height:19px;white-space:pre-wrap;font-size:14px;color:#41546d}
-.barcoded{background:#e5f6eb;padding:13px;border-radius:11px;margin:14px 0;overflow-wrap:anywhere}
-.barcoded strong{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#276342}.barcoded span{font-weight:750;font-size:22px;letter-spacing:1px}
-.candidate{border:1px solid #d8e2ee;border-radius:13px;padding:12px;margin:10px 0}.candidate.selected{border:2px solid #287c54;background:#f9fefa}
-.summary{display:flex;gap:12px;align-items:flex-start}.art{flex:0 0 104px;width:104px;height:104px;object-fit:cover;background:#edf1f6;border-radius:8px;border:1px solid #e0e5ed}
-.noart{display:flex;align-items:center;justify-content:center;font-size:30px;color:#789;flex:0 0 104px;width:104px;height:104px;background:#edf1f6;border-radius:8px}
-.meta{min-width:0;flex:1}.meta h3,.meta p{margin:0 0 5px;overflow-wrap:anywhere}.meta p{font-size:14px}.field{font-size:12px;color:#5c6b7c}
-.badge{display:inline-block;font-size:11px;font-weight:700;background:#e9eef5;color:#405268;border-radius:40px;padding:4px 8px;margin:5px 0}
-hr{border:0;border-top:1px solid #e5eaf0;margin:13px 0}.hidden{display:none!important}
-.alert{background:#fff4df;border-radius:10px;padding:12px;color:#704c0b;font-size:14px}
-.matchbtn{margin:12px 0 1px}footer{padding:4px 10px;color:#65758b;font-size:12px;line-height:1.6}
-</style>
-</head>
-<body><main>
-<header><h1>📀 Media Library</h1><p class="sub">Live camera scanning with the familiar green reticle. Scan here; review, add, edit and archive in Google Sheets.</p>
-<a id="manageLibraryLink" class="buttonlink secondary" style="margin:14px 0" href="#">🗂 Manage My Library · Edit / Remove / Restore</a>
-<p class="tiny">Launch this page from your Google Sheet Home tab. This button opens the private inventory manager without needing a second bookmark.</p>
-</header>
-<section class="panel" aria-label="Scanner">
-<h2>1. Scan barcode</h2>
+.decoded{background:#e4f7eb;color:#214e37;border-radius:11px;padding:12px;margin:12px 0}.decoded strong{font-size:12px;letter-spacing:.09em}.decoded span{display:block;font-weight:800;font-size:23px;letter-spacing:1px;margin-top:3px}
+footer{font-size:12px;line-height:1.55;color:#68788c;padding:8px}
+</style></head><body><main>
+<h1>📀 Media Library</h1>
+<p class="sub">Choose a category once, scan, and we'll look it up automatically. No extra Find Matches tap.</p>
+<a id="manageLibrary" href="#" class="buttonlink secondary">🗂 Manage My Library · Edit / Remove / Restore</a>
+<section class="panel"><h2>1. What are you scanning?</h2>
+<div class="modeSelector" role="group" aria-label="Inventory category">
+<button id="modeMusic" type="button" aria-pressed="true">🎵 Music</button>
+<button id="modeBooks" type="button" aria-pressed="false">📚 Books</button>
+<button id="modeOther" type="button" aria-pressed="false">📼 Other</button>
+</div>
+<p id="modeHint" class="hint">Discogs identifies the release and suggests CD, vinyl, cassette, or 8-track.</p>
+<div id="otherFormatWrap" class="hidden"><label for="otherFormat">Optional: choose type (or choose after scanning)</label>
+<select id="otherFormat"><option value="">Choose later…</option>
+<optgroup label="Blank media"><option>Blank Tape</option><option>Blank CD</option></optgroup>
+<optgroup label="Movies"><option>VHS</option><option>DVD</option><option>Blu-ray</option></optgroup>
+<optgroup label="Homemade"><option>Mix Tapes</option><option>Burned CDs</option><option>Home VHS</option><option>Home DVD</option><option>Home Blu-ray</option></optgroup>
+</select></div></section>
+<section class="panel"><h2>2. Scan a barcode</h2>
 <div id="reader"></div>
-<button id="startCamera">📷 Use camera</button>
-<button id="stopCamera" class="secondary hidden">Stop camera</button>
-<div id="decoded" class="barcoded hidden"><strong>Barcode successfully decoded</strong><span id="decodedCode"></span></div>
+<button id="startCamera" type="button">📷 Use camera</button><button id="stopCamera" type="button" class="secondary hidden">Stop camera</button>
+<div id="decoded" class="decoded hidden"><strong>BARCODE READ</strong><span id="decodedCode"></span></div>
 <p id="scanState" role="status" aria-live="polite">Ready to scan.</p>
 <label for="manualBarcode">Or type / paste a barcode</label>
-<input id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="UPC / EAN (e.g. 012345678905)">
-
+<input id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="UPC / EAN / ISBN">
+<button id="manualLookup" class="secondary" type="button">Look up typed barcode</button>
 </section>
-<section class="panel" aria-label="Format and match">
-<h2>2. Identify your item</h2>
-<label for="medium">Which type of item is this?</label>
-<select id="medium">
-<option value="">Choose a medium…</option>
-<optgroup label="Official music"><option>CD</option><option>Cassette</option><option>Vinyl</option><option>8-Track</option></optgroup>
-<optgroup label="Books"><option>Books</option></optgroup>
-<optgroup label="Commercial movies"><option>VHS</option><option>DVD</option><option>Blu-ray</option></optgroup>
-<optgroup label="Blank inventory"><option>Blank CD</option><option>Blank Tape</option></optgroup>
-<optgroup label="Home recordings"><option>Burned CDs</option><option>Mix Tapes</option><option>Home VHS</option><option>Home DVD</option><option>Home Blu-ray</option></optgroup>
-</select>
-<p class="tiny">Choose the physical format, not necessarily the format suggested by an online database. We'll remember it for the current browser session.</p>
-<button id="manualLookup">🔎 Find matches &amp; add</button>
-<p class="tiny">Opens Discogs/book matches in the Google inventory app. The barcode is ready immediately; online services cannot delay scanning.</p>
-<div id="lookupState" role="status" aria-live="polite" class="sub">Scan a barcode, choose the medium, then tap Find matches &amp; add. No online lookup runs until you request it.</div>
-<div id="matches"></div>
-<div id="fallback" class="hidden">
-  <button id="openManual">Find all matches / review in inventory</button>
-  <p class="tiny">Discogs matching runs securely in Google Apps Script. Book ISBNs are checked through book catalogs. You can always enter details manually.</p>
-</div>
-</section>
-<section class="panel"><h2>3. No barcode? Search by text.</h2><p class="sub">Enter an artist, album title, catalog number, author, or book title. Choose from the editions we can find.</p>
-<label for="textQuery">Search terms</label><input id="textQuery" placeholder="Artist, title or catalog #">
-<label for="searchBy">Search by</label><select id="searchBy"><option value="any">Any text</option><option value="catalog">Catalog number (music)</option><option value="title">Title</option><option value="artist">Artist / author</option></select>
-<button id="textSearch">Search possible matches</button><button id="manualNoCode" class="outline">Skip lookup — enter completely manually</button>
-<p class="tiny">Search runs in the Google inventory app; a Discogs personal token is required for Discogs results.</p></section>
-<footer>This live camera scanner runs on a separate HTTPS-hosted page, launched from your Google Sheet Home. Barcode scanning happens on your iPhone without online requests. Release previews come from Discogs, or book catalogs, in the Google confirmation page; MusicBrainz is an optional fallback. Final saves require confirmation in your Google Apps Script inventory app. No camera photos are uploaded.</footer>
-</main>
-<script>
+<section class="panel"><h2>3. No barcode?</h2><p class="hint">Search music by artist, title or catalog number; books by title or author. Other media can be entered manually.</p>
+<label for="textQuery">Artist, title, or catalog number</label><input id="textQuery" placeholder="e.g. Rumours, Jolene, RCA APL1-0473">
+<label for="searchBy">Search field</label><select id="searchBy"><option value="any">Any text</option><option value="catalog">Catalog number</option><option value="title">Title</option><option value="artist">Artist / author</option></select>
+<button id="textSearch" class="secondary" type="button">Find possible matches</button><button id="manualNoCode" class="secondary" type="button">Skip lookup — add manually</button>
+</section><footer>Scanner uses your iPhone's camera locally. The Google inventory app handles Discogs and book lookups; nothing is saved until you review and confirm. The scanner has no access token or direct permission to write to your spreadsheet. For blank tapes, your own stock inventory is checked first; 45spaces and CassetteCatalog can be useful for reference, but are not being scraped.</footer>
+</main><script>
 'use strict';
 const APP_URL='https://script.google.com/macros/s/AKfycbx7_374YsXgGsZeWgG2RNyZCE0jM6sI--tkUTIZBj-wnyLnSlw_MPuqVoB9EMhVj1yD/exec';
-document.getElementById('manageLibraryLink').href=APP_URL+'?view=manage';
-const FORMATS=['CD','Cassette','Vinyl','8-Track','VHS','DVD','Blu-ray','Blank CD','Blank Tape','Burned CDs','Mix Tapes','Home VHS','Home DVD','Home Blu-ray','Books'];
 const $=id=>document.getElementById(id);
-let reader=null,scanLock=false,currentBarcode='',results=[],lookupSequence=0;
-function message(t){$('scanState').textContent=t;}
-function cleanBarcode(s){return String(s||'').replace(/\D/g,'').slice(0,24);}
-function equalsBarcode(a,b){a=cleanBarcode(a);b=cleanBarcode(b);return a===b||(a.length===12&&'0'+a===b)||(b.length===12&&'0'+b===a);}
-function medium(){return FORMATS.includes($('medium').value)?$('medium').value:'';}
-function sanitizeId(s){return /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(s||'')?s:'';}
-function words(s,cap=220){return String(s==null?'':s).trim().slice(0,cap);}
-function renderCandidate(item,index){
- const card=document.createElement('div');card.className='candidate';
- const s=document.createElement('div');s.className='summary';
- if(item.mbid){const img=document.createElement('img');img.className='art';img.alt='Cover art (if available)';img.loading='lazy';img.src='https://coverartarchive.org/release/'+encodeURIComponent(item.mbid)+'/front-250';img.onerror=()=>{const fallback=document.createElement('div');fallback.className='noart';fallback.textContent='♫';img.replaceWith(fallback);};s.append(img);}
- else {const art=document.createElement('div');art.className='noart';art.textContent='♫';s.append(art);}
- const meta=document.createElement('div');meta.className='meta';
- const title=document.createElement('h3');title.textContent=item.title||'Untitled release';meta.append(title);
- const artist=document.createElement('p');artist.textContent=item.artist||'Artist unknown';meta.append(artist);
- const band=document.createElement('div');band.className='badge';band.textContent=[item.year,item.media].filter(Boolean).join(' · ')||'MusicBrainz match';meta.append(band);
- const lines=[['Label',item.label],['Catalog #',item.catno],['Country',item.country],['Edition',item.edition]];
- lines.forEach(([key,val])=>{if(val){const p=document.createElement('p');p.className='field';p.textContent=key+': '+val;meta.append(p);}});
- s.append(meta);card.append(s);
- const btn=document.createElement('button');btn.className='matchbtn';btn.textContent='Match & Add';btn.onclick=()=>goToReview(item);card.append(btn);
- const note=document.createElement('p');note.className='tiny';note.textContent='Opens a prefilled confirmation screen. Nothing is saved until you approve.';card.append(note);
- return card;
+let scanMode='music',reader=null,scanLock=false,currentBarcode='';
+function barcodeDigits(s){return String(s||'').replace(/\D/g,'').slice(0,24);}
+function setMessage(s){$('scanState').textContent=s;}
+function setMode(mode){
+ scanMode=['music','books','other'].includes(mode)?mode:'music';
+ ['music','books','other'].forEach(m=>$('mode'+m[0].toUpperCase()+m.slice(1)).setAttribute('aria-pressed',String(m===scanMode)));
+ $('otherFormatWrap').classList.toggle('hidden',scanMode!=='other');
+ $('modeHint').textContent=scanMode==='music'?'Discogs searches across music formats and suggests CD, vinyl, cassette, or 8-track.':scanMode==='books'?'ISBN lookups use Google Books and Open Library.':'Blank tape/CD stock, movies, and handmade recordings. Choose the exact type after scanning if needed.';
+ try{localStorage.setItem('mediaLibraryScanMode',scanMode);}catch(_){}
 }
-function renderMatches(list){
- const area=$('matches');area.replaceChildren();
- if(!list.length)return;
- const heading=document.createElement('p');heading.className='sub';heading.textContent=list.length+' possible release '+(list.length===1?'match':'matches')+'. Confirm the correct edition.';area.append(heading);
- list.forEach((m,i)=>area.append(renderCandidate(m,i)));
+function makeAppURL(options={}){
+ const u=new URL(APP_URL);u.searchParams.set('intent',scanMode);
+ if(scanMode==='books')u.searchParams.set('category','Books');
+ if(scanMode==='other'&&$('otherFormat').value)u.searchParams.set('category',$('otherFormat').value);
+ for(const [key,val] of Object.entries(options)){if(val)u.searchParams.set(key,String(val).slice(0,220));}
+ return u.toString();
 }
-function showFallback(show=true){$('fallback').classList.toggle('hidden',!show);}
-function failLookup(messageText){$('lookupState').innerHTML='';const box=document.createElement('div');box.className='alert';box.textContent=messageText;$('lookupState').append(box);renderMatches([]);showFallback(true);}
-function fromMusicBrainz(r){
- const li=(r['label-info']||[])[0]||{},media=(r.media||[]).map(x=>x.format||'').filter(Boolean).join(' / ');
- return {title:words(r.title),artist:words((r['artist-credit']||[]).map(x=>typeof x==='string'?x:x.name||'').join('')),year:words((r.date||'').slice(0,4)),label:words((li.label||{}).name),catno:words(li['catalog-number']),country:words(r.country),edition:words(r.disambiguation),mbid:sanitizeId(r.id),media};
-}
-// Fast path: decode on device; do not hold up scanning for third-party HTTP requests.
-function acceptBarcode(code){
- code=cleanBarcode(code);
- if(!code){message('Enter a barcode or scan one.');return;}
- currentBarcode=code;
- lookupSequence++; // discard work from any previous scan
- if(!medium()&&/^(978|979)\d{10}$/.test(code))$('medium').value='Books';
- $('manualBarcode').value=code;
- $('decodedCode').textContent=code;
- $('decoded').classList.remove('hidden');
- renderMatches([]);showFallback(false);
- message('✓ Barcode captured: '+code+'. Choose the medium and tap Find matches & add.');
- $('lookupState').textContent='Barcode ready. No database request is running; matching begins when you tap Find matches & add.';
-}
-function goToReview(item,extra){
- const chosen=medium();
- if(!chosen){$('lookupState').textContent='Choose the physical medium before continuing.';$('medium').focus();return;}
- try{sessionStorage.setItem('mediaLibraryLastFormat',chosen);}catch(_){}
- const u=new URL(APP_URL);
- const fields={barcode:currentBarcode,category:chosen};
- if(extra&&extra.query){fields.barcode='';fields.query=extra.query;fields.searchBy=extra.searchBy||'any';}
- if(item)Object.assign(fields,{title:item.title,artist:item.artist,year:item.year,label:item.label,catno:item.catno,country:item.country,edition:item.edition,mbid:item.mbid});
- Object.keys(fields).forEach(k=>{if(fields[k])u.searchParams.set(k,words(fields[k],k==='barcode'?24:220));});
- window.location.assign(u.toString());
-}
+function goToGoogle(options={}){window.location.assign(makeAppURL(options));}
 async function stopCamera(){
- if(reader){const old=reader;reader=null;try{await old.stop();}catch(_){}try{old.clear();}catch(_){} }
+ const current=reader;reader=null;
+ if(current){try{await current.stop();}catch(_){}try{current.clear();}catch(_){}}
  $('stopCamera').classList.add('hidden');$('startCamera').classList.remove('hidden');
 }
-$('startCamera').onclick=async()=>{
- if(!window.isSecureContext)return message('Open the scanner over HTTPS.');
- if(!window.Html5Qrcode)return message('Scanner library failed to load. Check your connection, then refresh.');
- await stopCamera();currentBarcode='';scanLock=false;results=[];lookupSequence++;
- $('decoded').classList.add('hidden');renderMatches([]);showFallback(false);$('lookupState').textContent='Scan a barcode to identify the item.';
- $('startCamera').classList.add('hidden');message('Requesting camera permission…');
+function barcodeCaptured(raw){
+ const code=barcodeDigits(raw);if(!code){setMessage('Could not read a barcode. Try again.');return;}
+ currentBarcode=code;$('manualBarcode').value=code;$('decodedCode').textContent=code;$('decoded').classList.remove('hidden');
+ setMessage('Barcode '+code+' captured ✓ Opening '+(scanMode==='books'?'book':'inventory')+' lookup…');
+ goToGoogle({barcode:code});
+}
+async function startCamera(){
+ if(!window.isSecureContext)return setMessage('Open this page using HTTPS.');
+ if(!window.Html5Qrcode)return setMessage('Camera scanner library is unavailable. Refresh or check your connection.');
+ await stopCamera();scanLock=false;currentBarcode='';$('decoded').classList.add('hidden');$('startCamera').classList.add('hidden');
+ setMessage('Opening rear camera…');
  try{
-  reader=new Html5Qrcode('reader',{formatsToSupport:[Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.CODE_128],verbose:false});
-  await reader.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150},aspectRatio:1.333},async code=>{
-   if(scanLock)return;scanLock=true;message('Barcode decoded ✓');
-   if(navigator.vibrate)navigator.vibrate(80);
-   await stopCamera();acceptBarcode(code);
+  const scanner=new Html5Qrcode('reader',{formatsToSupport:[Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.CODE_128],verbose:false});
+  reader=scanner;
+  await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150},aspectRatio:1.333},async decoded=>{
+   if(scanLock)return;scanLock=true;
+   if(navigator.vibrate)navigator.vibrate(75);
+   await stopCamera();barcodeCaptured(decoded);
   },()=>{});
-  $('stopCamera').classList.remove('hidden');message('Point your camera at a barcode.');
- }catch(e){message('Could not open camera: '+(e.message||String(e))+'. Try Safari directly.');await stopCamera();}
-};
-$('stopCamera').onclick=stopCamera;
-$('manualLookup').onclick=async()=>{await stopCamera(); const typed=cleanBarcode($('manualBarcode').value); if(typed)acceptBarcode(typed); if(!currentBarcode){message('Scan or enter a barcode first.');return;}goToReview(null);};
-$('openManual').onclick=()=>goToReview(null);
-$('textSearch').onclick=()=>{const q=$('textQuery').value.trim();if(q.length<2)return message('Enter two or more characters to search.'); if(!medium())return message('Choose the format above first (such as CD, Cassette, Vinyl, or Books).');goToReview(null,{query:q,searchBy:$('searchBy').value});};
-$('manualNoCode').onclick=()=>{currentBarcode='';goToReview(null);};
-$('medium').onchange=()=>{
- const v=medium();try{if(v)sessionStorage.setItem('mediaLibraryLastFormat',v);}catch(_){}
- if(currentBarcode)$('lookupState').textContent='Barcode ready. Tap Find matches & add to review candidate releases in Google.';
-};
-try{const last=sessionStorage.getItem('mediaLibraryLastFormat');if(FORMATS.includes(last))$('medium').value=last;}catch(_){}
-</script>
-</body></html>
+  $('stopCamera').classList.remove('hidden');setMessage('Point the camera at the barcode. Matching starts automatically.');
+ }catch(e){await stopCamera();setMessage('Could not start camera: '+(e.message||String(e)));}
+}
+$('manageLibrary').href=APP_URL+'?view=manage';
+$('modeMusic').onclick=()=>setMode('music');$('modeBooks').onclick=()=>setMode('books');$('modeOther').onclick=()=>setMode('other');
+$('startCamera').onclick=startCamera;$('stopCamera').onclick=stopCamera;
+$('manualLookup').onclick=async()=>{const code=barcodeDigits($('manualBarcode').value);if(!code)return setMessage('Enter a barcode first.');await stopCamera();barcodeCaptured(code);};
+$('textSearch').onclick=()=>{const query=$('textQuery').value.trim();if(query.length<2)return setMessage('Enter at least two characters.');goToGoogle({query,searchBy:$('searchBy').value});};
+$('manualNoCode').onclick=()=>goToGoogle({});
+try{setMode(localStorage.getItem('mediaLibraryScanMode')||'music');}catch(_){setMode('music');}
+try{if(scanMode==='other'){const val=localStorage.getItem('mediaLibraryOtherFormat');if(val&&[...$('otherFormat').options].some(o=>o.value===val))$('otherFormat').value=val;}}catch(_){}
+$('otherFormat').onchange=()=>{try{localStorage.setItem('mediaLibraryOtherFormat',$('otherFormat').value);}catch(_){}};
+</script></body></html>
