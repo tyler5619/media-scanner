@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Media Library · Live Scanner v1.6.1</title>
+<title>Media Library · Live Scanner v1.6.2</title>
 <script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#192638;background:#f2f5f9}
@@ -42,7 +42,7 @@ hr{border:0;border-top:1px solid #e5eaf0;margin:13px 0}.hidden{display:none!impo
 <p id="scanState" role="status" aria-live="polite">Ready to scan.</p>
 <label for="manualBarcode">Or type / paste a barcode</label>
 <input id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="UPC / EAN (e.g. 012345678905)">
-<button id="manualLookup" class="secondary">Look up barcode</button>
+
 </section>
 <section class="panel" aria-label="Format and match">
 <h2>2. Identify your item</h2>
@@ -56,7 +56,9 @@ hr{border:0;border-top:1px solid #e5eaf0;margin:13px 0}.hidden{display:none!impo
 <optgroup label="Home recordings"><option>Burned CDs</option><option>Mix Tapes</option><option>Home VHS</option><option>Home DVD</option><option>Home Blu-ray</option></optgroup>
 </select>
 <p class="tiny">Choose the physical format, not necessarily the format suggested by an online database. We'll remember it for the current browser session.</p>
-<div id="lookupState" role="status" aria-live="polite" class="sub">Scan a barcode to find matching releases.</div>
+<button id="manualLookup">🔎 Find matches &amp; add</button>
+<p class="tiny">Opens Discogs/book matches in the Google inventory app. The barcode is ready immediately; online services cannot delay scanning.</p>
+<div id="lookupState" role="status" aria-live="polite" class="sub">Scan a barcode, choose the medium, then tap Find matches &amp; add. No online lookup runs until you request it.</div>
 <div id="matches"></div>
 <div id="fallback" class="hidden">
   <button id="openManual">Find all matches / review in inventory</button>
@@ -67,8 +69,8 @@ hr{border:0;border-top:1px solid #e5eaf0;margin:13px 0}.hidden{display:none!impo
 <label for="textQuery">Search terms</label><input id="textQuery" placeholder="Artist, title or catalog #">
 <label for="searchBy">Search by</label><select id="searchBy"><option value="any">Any text</option><option value="catalog">Catalog number (music)</option><option value="title">Title</option><option value="artist">Artist / author</option></select>
 <button id="textSearch">Search possible matches</button><button id="manualNoCode" class="outline">Skip lookup — enter completely manually</button>
-<p class="tiny">The search runs in the Google inventory app; a Discogs personal token is required for Discogs results.</p></section>
-<footer>This live camera scanner runs on a separate HTTPS-hosted page, launched from your Google Sheet Home. Barcode scanning happens on your iPhone. Quick music previews come from MusicBrainz, with deeper Discogs searches on the Google confirmation page; artwork comes from Cover Art Archive when available. Final saves require confirmation in your Google Apps Script inventory app. No camera photos are uploaded.</footer>
+<p class="tiny">Search runs in the Google inventory app; a Discogs personal token is required for Discogs results.</p></section>
+<footer>This live camera scanner runs on a separate HTTPS-hosted page, launched from your Google Sheet Home. Barcode scanning happens on your iPhone without online requests. Release previews come from Discogs, or book catalogs, in the Google confirmation page; MusicBrainz is an optional fallback. Final saves require confirmation in your Google Apps Script inventory app. No camera photos are uploaded.</footer>
 </main>
 <script>
 'use strict';
@@ -111,43 +113,19 @@ function fromMusicBrainz(r){
  const li=(r['label-info']||[])[0]||{},media=(r.media||[]).map(x=>x.format||'').filter(Boolean).join(' / ');
  return {title:words(r.title),artist:words((r['artist-credit']||[]).map(x=>typeof x==='string'?x:x.name||'').join('')),year:words((r.date||'').slice(0,4)),label:words((li.label||{}).name),catno:words(li['catalog-number']),country:words(r.country),edition:words(r.disambiguation),mbid:sanitizeId(r.id),media};
 }
-function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
-async function musicLookup(code){
- const variants=[code];if(code.length===12)variants.push('0'+code);else if(code.length===13&&code.startsWith('0'))variants.push(code.substring(1));
- for(let i=0;i<variants.length;i++){
-   if(i>0)await sleep(1100); // respect public API rate limit
-   const url='https://musicbrainz.org/ws/2/release/?'+new URLSearchParams({query:'barcode:'+variants[i],fmt:'json',limit:'10'});
-   const response=await fetch(url.toString(),{mode:'cors',headers:{'Accept':'application/json'}});
-   if(!response.ok)throw Error('MusicBrainz returned HTTP '+response.status);
-   const data=await response.json();
-   const list=(data.releases||[]).filter(r=>!r.barcode||equalsBarcode(r.barcode,code)).map(fromMusicBrainz);
-   if(list.length)return list;
- }
- return [];
-}
-async function lookupBarcode(code){
+// Fast path: decode on device; do not hold up scanning for third-party HTTP requests.
+function acceptBarcode(code){
  code=cleanBarcode(code);
  if(!code){message('Enter a barcode or scan one.');return;}
- currentBarcode=code;scanLock=true;lookupSequence++;
- const thisLookup=lookupSequence;
- // ISBN-13 barcodes conventionally begin 978/979: suggest Books, but never force it.
+ currentBarcode=code;
+ lookupSequence++; // discard work from any previous scan
  if(!medium()&&/^(978|979)\d{10}$/.test(code))$('medium').value='Books';
- $('manualBarcode').value=code;$('decodedCode').textContent=code;$('decoded').classList.remove('hidden');
+ $('manualBarcode').value=code;
+ $('decodedCode').textContent=code;
+ $('decoded').classList.remove('hidden');
  renderMatches([]);showFallback(false);
- if(!medium()){$('lookupState').textContent='Choose the medium above. Looking for music releases…';}
- else $('lookupState').textContent='Looking up release metadata…';
- // Blank stock, homemade items and movies currently have no trustworthy open public barcode metadata source.
- const chosen=medium();
- if(chosen&&!( ['CD','Cassette','Vinyl','8-Track'].includes(chosen))){
-   failLookup(chosen==='Books'?'ISBN captured. Tap Find all matches to identify this book using Google Books and Open Library.':'Barcode captured. Tap Find all matches to continue to your inventory.');return;
- }
- try{
-  const list=await musicLookup(code);
-  if(thisLookup!==lookupSequence)return;
-  results=list;
-  if(list.length){$('lookupState').textContent='Found '+list.length+' possible music release '+(list.length===1?'match.':'matches.');renderMatches(list);showFallback(true);}
-  else failLookup('No verified music-release match for this barcode. You can still enter it manually or use the Google-side lookup.');
- }catch(e){if(thisLookup!==lookupSequence)return;failLookup('The online music lookup could not be completed ('+(e.message||'network/CORS error')+'). Your barcode was decoded correctly. Continue to the Google confirmation app.');}
+ message('✓ Barcode captured: '+code+'. Choose the medium and tap Find matches & add.');
+ $('lookupState').textContent='Barcode ready. No database request is running; matching begins when you tap Find matches & add.';
 }
 function goToReview(item,extra){
  const chosen=medium();
@@ -173,22 +151,21 @@ $('startCamera').onclick=async()=>{
  try{
   reader=new Html5Qrcode('reader',{formatsToSupport:[Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.CODE_128],verbose:false});
   await reader.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150},aspectRatio:1.333},async code=>{
-   if(scanLock)return;scanLock=true;message('Barcode decoded — checking database…');
+   if(scanLock)return;scanLock=true;message('Barcode decoded ✓');
    if(navigator.vibrate)navigator.vibrate(80);
-   await stopCamera();lookupBarcode(code);
+   await stopCamera();acceptBarcode(code);
   },()=>{});
   $('stopCamera').classList.remove('hidden');message('Point your camera at a barcode.');
  }catch(e){message('Could not open camera: '+(e.message||String(e))+'. Try Safari directly.');await stopCamera();}
 };
 $('stopCamera').onclick=stopCamera;
-$('manualLookup').onclick=async()=>{await stopCamera();lookupBarcode($('manualBarcode').value);};
+$('manualLookup').onclick=async()=>{await stopCamera(); const typed=cleanBarcode($('manualBarcode').value); if(typed)acceptBarcode(typed); if(!currentBarcode){message('Scan or enter a barcode first.');return;}goToReview(null);};
 $('openManual').onclick=()=>goToReview(null);
 $('textSearch').onclick=()=>{const q=$('textQuery').value.trim();if(q.length<2)return message('Enter two or more characters to search.'); if(!medium())return message('Choose the format above first (such as CD, Cassette, Vinyl, or Books).');goToReview(null,{query:q,searchBy:$('searchBy').value});};
 $('manualNoCode').onclick=()=>{currentBarcode='';goToReview(null);};
 $('medium').onchange=()=>{
  const v=medium();try{if(v)sessionStorage.setItem('mediaLibraryLastFormat',v);}catch(_){}
- if(currentBarcode&&v&&!['CD','Cassette','Vinyl','8-Track'].includes(v))failLookup(v==='Books'?'ISBN captured. Tap Find all matches to search book catalogs.':'Barcode captured. Use Find all matches / review to continue.');
- else if(currentBarcode&&results.length){$('lookupState').textContent='Review the possible matches below.';renderMatches(results);showFallback(true);}
+ if(currentBarcode)$('lookupState').textContent='Barcode ready. Tap Find matches & add to review candidate releases in Google.';
 };
 try{const last=sessionStorage.getItem('mediaLibraryLastFormat');if(FORMATS.includes(last))$('medium').value=last;}catch(_){}
 </script>
