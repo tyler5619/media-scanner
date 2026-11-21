@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<title>Media Library · Scan & Match</title>
+<title>Media Library · Live Scanner v1.6.1</title>
 <script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
 <style>
 :root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#192638;background:#f2f5f9}
@@ -29,7 +29,10 @@ hr{border:0;border-top:1px solid #e5eaf0;margin:13px 0}.hidden{display:none!impo
 </style>
 </head>
 <body><main>
-<header><h1>📀 Media Library</h1><p class="sub">Scan, identify, confirm, and add to your collection.</p></header>
+<header><h1>📀 Media Library</h1><p class="sub">Live camera scanning with the familiar green reticle. Scan here; review, add, edit and archive in Google Sheets.</p>
+<a id="manageLibraryLink" class="buttonlink secondary" style="margin:14px 0" href="#">🗂 Manage My Library · Edit / Remove / Restore</a>
+<p class="tiny">Launch this page from your Google Sheet Home tab. This button opens the private inventory manager without needing a second bookmark.</p>
+</header>
 <section class="panel" aria-label="Scanner">
 <h2>1. Scan barcode</h2>
 <div id="reader"></div>
@@ -47,6 +50,7 @@ hr{border:0;border-top:1px solid #e5eaf0;margin:13px 0}.hidden{display:none!impo
 <select id="medium">
 <option value="">Choose a medium…</option>
 <optgroup label="Official music"><option>CD</option><option>Cassette</option><option>Vinyl</option><option>8-Track</option></optgroup>
+<optgroup label="Books"><option>Books</option></optgroup>
 <optgroup label="Commercial movies"><option>VHS</option><option>DVD</option><option>Blu-ray</option></optgroup>
 <optgroup label="Blank inventory"><option>Blank CD</option><option>Blank Tape</option></optgroup>
 <optgroup label="Home recordings"><option>Burned CDs</option><option>Mix Tapes</option><option>Home VHS</option><option>Home DVD</option><option>Home Blu-ray</option></optgroup>
@@ -55,17 +59,22 @@ hr{border:0;border-top:1px solid #e5eaf0;margin:13px 0}.hidden{display:none!impo
 <div id="lookupState" role="status" aria-live="polite" class="sub">Scan a barcode to find matching releases.</div>
 <div id="matches"></div>
 <div id="fallback" class="hidden">
-  <button id="openManual" class="secondary">Enter or correct details manually</button>
-  <p class="tiny">The barcode will be carried over; the inventory app will also try its server-side lookup.</p>
+  <button id="openManual">Find all matches / review in inventory</button>
+  <p class="tiny">Discogs matching runs securely in Google Apps Script. Book ISBNs are checked through book catalogs. You can always enter details manually.</p>
 </div>
 </section>
-<section class="panel"><h2>No barcode?</h2><p class="sub">Promotional records, home tapes, homemade discs, and other oddities are welcome.</p><button id="manualNoCode" class="outline">Add an unbarcoded item</button></section>
-<footer>Barcode scanning happens on your iPhone. Music-release suggestions come from MusicBrainz; artwork comes from Cover Art Archive when available. Final saves require confirmation in your Google Apps Script inventory app. No camera photos are uploaded.</footer>
+<section class="panel"><h2>3. No barcode? Search by text.</h2><p class="sub">Enter an artist, album title, catalog number, author, or book title. Choose from the editions we can find.</p>
+<label for="textQuery">Search terms</label><input id="textQuery" placeholder="Artist, title or catalog #">
+<label for="searchBy">Search by</label><select id="searchBy"><option value="any">Any text</option><option value="catalog">Catalog number (music)</option><option value="title">Title</option><option value="artist">Artist / author</option></select>
+<button id="textSearch">Search possible matches</button><button id="manualNoCode" class="outline">Skip lookup — enter completely manually</button>
+<p class="tiny">The search runs in the Google inventory app; a Discogs personal token is required for Discogs results.</p></section>
+<footer>This live camera scanner runs on a separate HTTPS-hosted page, launched from your Google Sheet Home. Barcode scanning happens on your iPhone. Quick music previews come from MusicBrainz, with deeper Discogs searches on the Google confirmation page; artwork comes from Cover Art Archive when available. Final saves require confirmation in your Google Apps Script inventory app. No camera photos are uploaded.</footer>
 </main>
 <script>
 'use strict';
 const APP_URL='https://script.google.com/macros/s/AKfycbx7_374YsXgGsZeWgG2RNyZCE0jM6sI--tkUTIZBj-wnyLnSlw_MPuqVoB9EMhVj1yD/exec';
-const FORMATS=['CD','Cassette','Vinyl','8-Track','VHS','DVD','Blu-ray','Blank CD','Blank Tape','Burned CDs','Mix Tapes','Home VHS','Home DVD','Home Blu-ray'];
+document.getElementById('manageLibraryLink').href=APP_URL+'?view=manage';
+const FORMATS=['CD','Cassette','Vinyl','8-Track','VHS','DVD','Blu-ray','Blank CD','Blank Tape','Burned CDs','Mix Tapes','Home VHS','Home DVD','Home Blu-ray','Books'];
 const $=id=>document.getElementById(id);
 let reader=null,scanLock=false,currentBarcode='',results=[],lookupSequence=0;
 function message(t){$('scanState').textContent=t;}
@@ -121,6 +130,8 @@ async function lookupBarcode(code){
  if(!code){message('Enter a barcode or scan one.');return;}
  currentBarcode=code;scanLock=true;lookupSequence++;
  const thisLookup=lookupSequence;
+ // ISBN-13 barcodes conventionally begin 978/979: suggest Books, but never force it.
+ if(!medium()&&/^(978|979)\d{10}$/.test(code))$('medium').value='Books';
  $('manualBarcode').value=code;$('decodedCode').textContent=code;$('decoded').classList.remove('hidden');
  renderMatches([]);showFallback(false);
  if(!medium()){$('lookupState').textContent='Choose the medium above. Looking for music releases…';}
@@ -128,7 +139,7 @@ async function lookupBarcode(code){
  // Blank stock, homemade items and movies currently have no trustworthy open public barcode metadata source.
  const chosen=medium();
  if(chosen&&!( ['CD','Cassette','Vinyl','8-Track'].includes(chosen))){
-   failLookup('Barcode captured. Automatic lookup for '+chosen+' is not connected yet; you can add it manually without losing the barcode.');return;
+   failLookup(chosen==='Books'?'ISBN captured. Tap Find all matches to identify this book using Google Books and Open Library.':'Barcode captured. Tap Find all matches to continue to your inventory.');return;
  }
  try{
   const list=await musicLookup(code);
@@ -138,12 +149,13 @@ async function lookupBarcode(code){
   else failLookup('No verified music-release match for this barcode. You can still enter it manually or use the Google-side lookup.');
  }catch(e){if(thisLookup!==lookupSequence)return;failLookup('The online music lookup could not be completed ('+(e.message||'network/CORS error')+'). Your barcode was decoded correctly. Continue to the Google confirmation app.');}
 }
-function goToReview(item){
+function goToReview(item,extra){
  const chosen=medium();
  if(!chosen){$('lookupState').textContent='Choose the physical medium before continuing.';$('medium').focus();return;}
  try{sessionStorage.setItem('mediaLibraryLastFormat',chosen);}catch(_){}
  const u=new URL(APP_URL);
  const fields={barcode:currentBarcode,category:chosen};
+ if(extra&&extra.query){fields.barcode='';fields.query=extra.query;fields.searchBy=extra.searchBy||'any';}
  if(item)Object.assign(fields,{title:item.title,artist:item.artist,year:item.year,label:item.label,catno:item.catno,country:item.country,edition:item.edition,mbid:item.mbid});
  Object.keys(fields).forEach(k=>{if(fields[k])u.searchParams.set(k,words(fields[k],k==='barcode'?24:220));});
  window.location.assign(u.toString());
@@ -171,10 +183,11 @@ $('startCamera').onclick=async()=>{
 $('stopCamera').onclick=stopCamera;
 $('manualLookup').onclick=async()=>{await stopCamera();lookupBarcode($('manualBarcode').value);};
 $('openManual').onclick=()=>goToReview(null);
+$('textSearch').onclick=()=>{const q=$('textQuery').value.trim();if(q.length<2)return message('Enter two or more characters to search.'); if(!medium())return message('Choose the format above first (such as CD, Cassette, Vinyl, or Books).');goToReview(null,{query:q,searchBy:$('searchBy').value});};
 $('manualNoCode').onclick=()=>{currentBarcode='';goToReview(null);};
 $('medium').onchange=()=>{
  const v=medium();try{if(v)sessionStorage.setItem('mediaLibraryLastFormat',v);}catch(_){}
- if(currentBarcode&&v&&!['CD','Cassette','Vinyl','8-Track'].includes(v))failLookup('Barcode captured. Automatic lookup for '+v+' is not available; use manual entry.');
+ if(currentBarcode&&v&&!['CD','Cassette','Vinyl','8-Track'].includes(v))failLookup(v==='Books'?'ISBN captured. Tap Find all matches to search book catalogs.':'Barcode captured. Use Find all matches / review to continue.');
  else if(currentBarcode&&results.length){$('lookupState').textContent='Review the possible matches below.';renderMatches(results);showFallback(true);}
 };
 try{const last=sessionStorage.getItem('mediaLibraryLastFormat');if(FORMATS.includes(last))$('medium').value=last;}catch(_){}
