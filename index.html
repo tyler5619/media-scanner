@@ -1,17 +1,182 @@
-<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover"><title>Media Library Scanner</title>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
-<style>body{font:16px -apple-system,BlinkMacSystemFont,system-ui,sans-serif;background:#f3f5f8;color:#1d2939;margin:0}main{max-width:520px;margin:auto;padding:18px}section{background:#fff;border-radius:14px;padding:17px;margin:14px 0;box-shadow:0 1px 4px #0001}h1{font-size:25px;margin:12px 0}label{display:block;font-size:13px;font-weight:650;margin:10px 0 4px}input,button{font:inherit;box-sizing:border-box;width:100%;padding:13px;border-radius:9px;margin:4px 0}input{border:1px solid #aab4c0}button{background:#17549b;color:white;border:0;font-weight:650}button.alt{background:#e7edf5;color:#25354b}#reader{width:100%;overflow:hidden}#reader video{max-width:100%}#status{white-space:pre-wrap;font-size:14px}small{color:#596579}details{margin-top:16px}summary{cursor:pointer;font-weight:600}</style></head><body><main><h1>📀 Media Library Scanner</h1><p>Scan on iPhone, then review and save in Google Sheets.</p>
-<section><div id="reader"></div><button id="start">Use camera</button><button id="stop" class="alt" hidden>Stop camera</button><div id="decoded" hidden style="background:#e7f6eb;padding:12px;border-radius:10px;margin-top:10px"><strong>Barcode decoded:</strong> <span id="decodedNumber"></span><button id="openInventory">Open inventory lookup</button></div><p id="status" role="status">Ready.</p><label for="manual">Or enter barcode manually</label><input id="manual" inputmode="numeric" autocomplete="off" placeholder="UPC / EAN"><button class="alt" id="submit">Look up barcode</button></section>
-<small>This scanner reads barcodes locally in your browser. It sends the barcode—not a photo—to your Google Apps Script URL. Camera access requires HTTPS and Safari permission. The scanner library is loaded from unpkg.com.</small></main><script>
-const $=x=>document.getElementById(x);let scanner=null,busy=false,lastDecoded="";
-const INVENTORY_APP_URL='https://script.google.com/macros/s/AKfycbx7_374YsXgGsZeWgG2RNyZCE0jM6sI--tkUTIZBj-wnyLnSlw_MPuqVoB9EMhVj1yD/exec';
-function appUrl(){return new URL(INVENTORY_APP_URL);}
-async function stop(){if(scanner){try{await scanner.stop();}catch(e){}try{scanner.clear();}catch(e){}scanner=null;}$('start').hidden=false;$('stop').hidden=true;}
-async function send(code){if(busy)return;let v=String(code||'').replace(/\D/g,'');if(!v){$('status').textContent='No barcode found.';return;}let u;try{u=appUrl();}catch(e){$('status').textContent=e.message;return;}busy=true;$('status').textContent='Opening inventory for '+v+'…';await stop();u.searchParams.set('barcode',v);window.location.href=u.toString();}
-$('start').onclick=async()=>{if(!window.isSecureContext){$('status').textContent='Camera needs an HTTPS website.';return;}if(!window.Html5Qrcode){$('status').textContent='Barcode library did not load. Check your connection.';return;}if(scanner)return;
- $('status').textContent='Requesting camera permission…';$('start').hidden=true;
- try{scanner=new Html5Qrcode('reader',{formatsToSupport:[Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.CODE_128],verbose:false});
- await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150},aspectRatio:1.333},txt=>{if(lastDecoded)return;lastDecoded=String(txt);$('manual').value=lastDecoded;$('decodedNumber').textContent=lastDecoded;$('decoded').hidden=false;$('status').textContent='Barcode decoded successfully. Tap Open inventory lookup.';if(navigator.vibrate)navigator.vibrate(100);stop();},()=>{});$('status').textContent='Point camera at a barcode.';$('stop').hidden=false;
- }catch(e){$('status').textContent='Camera failed: '+(e&&e.message?e.message:String(e))+'\nTry opening this website directly in Safari, and check Safari camera permissions.';await stop();}};
-$('stop').onclick=stop;$('submit').onclick=() => send($('manual').value);$('openInventory').onclick=()=>send(lastDecoded);$('start').addEventListener('click',()=>{lastDecoded='';$('decoded').hidden=true;}, {capture:true});
-</script></body></html>
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>Media Library · Scan & Match</title>
+<script defer src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<style>
+:root{color-scheme:light;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",system-ui,sans-serif;color:#192638;background:#f2f5f9}
+*{box-sizing:border-box}body{margin:0}main{max-width:630px;margin:auto;padding:18px 14px 60px}
+h1{font-size:26px;letter-spacing:-.6px;margin:8px 0}h2{font-size:19px;margin:0 0 14px}h3{font-size:17px;margin:0 0 5px}
+p{line-height:1.45}.sub{color:#5d6b7a;margin:6px 0 14px}.tiny{font-size:12px;color:#687689;line-height:1.4}
+.panel{background:white;border:1px solid #e8edf2;border-radius:17px;padding:17px;margin:14px 0;box-shadow:0 2px 7px #1829410a}
+button,.buttonlink,select,input{font:inherit}button,.buttonlink{display:block;width:100%;border:0;padding:14px 13px;border-radius:10px;background:#1657a2;color:#fff;font-weight:700;text-align:center;text-decoration:none;cursor:pointer;margin:8px 0}
+button:disabled{opacity:.55;cursor:wait}.secondary{background:#eaf0f7;color:#253a55}.outline{background:#fff;border:1px solid #b6c7d9;color:#194b84}
+label{display:block;font-size:14px;font-weight:650;margin:12px 0 6px}
+input,select{display:block;width:100%;min-height:49px;padding:11px 12px;border-radius:10px;border:1px solid #bac7d5;background:#fff;color:#1b2b3d}
+#reader{width:100%;overflow:hidden;border-radius:11px}#reader video{max-width:100%;border-radius:10px}
+#scanState{min-height:19px;white-space:pre-wrap;font-size:14px;color:#41546d}
+.barcoded{background:#e5f6eb;padding:13px;border-radius:11px;margin:14px 0;overflow-wrap:anywhere}
+.barcoded strong{display:block;font-size:12px;text-transform:uppercase;letter-spacing:.08em;color:#276342}.barcoded span{font-weight:750;font-size:22px;letter-spacing:1px}
+.candidate{border:1px solid #d8e2ee;border-radius:13px;padding:12px;margin:10px 0}.candidate.selected{border:2px solid #287c54;background:#f9fefa}
+.summary{display:flex;gap:12px;align-items:flex-start}.art{flex:0 0 104px;width:104px;height:104px;object-fit:cover;background:#edf1f6;border-radius:8px;border:1px solid #e0e5ed}
+.noart{display:flex;align-items:center;justify-content:center;font-size:30px;color:#789;flex:0 0 104px;width:104px;height:104px;background:#edf1f6;border-radius:8px}
+.meta{min-width:0;flex:1}.meta h3,.meta p{margin:0 0 5px;overflow-wrap:anywhere}.meta p{font-size:14px}.field{font-size:12px;color:#5c6b7c}
+.badge{display:inline-block;font-size:11px;font-weight:700;background:#e9eef5;color:#405268;border-radius:40px;padding:4px 8px;margin:5px 0}
+hr{border:0;border-top:1px solid #e5eaf0;margin:13px 0}.hidden{display:none!important}
+.alert{background:#fff4df;border-radius:10px;padding:12px;color:#704c0b;font-size:14px}
+.matchbtn{margin:12px 0 1px}footer{padding:4px 10px;color:#65758b;font-size:12px;line-height:1.6}
+</style>
+</head>
+<body><main>
+<header><h1>📀 Media Library</h1><p class="sub">Scan, identify, confirm, and add to your collection.</p></header>
+<section class="panel" aria-label="Scanner">
+<h2>1. Scan barcode</h2>
+<div id="reader"></div>
+<button id="startCamera">📷 Use camera</button>
+<button id="stopCamera" class="secondary hidden">Stop camera</button>
+<div id="decoded" class="barcoded hidden"><strong>Barcode successfully decoded</strong><span id="decodedCode"></span></div>
+<p id="scanState" role="status" aria-live="polite">Ready to scan.</p>
+<label for="manualBarcode">Or type / paste a barcode</label>
+<input id="manualBarcode" inputmode="numeric" autocomplete="off" placeholder="UPC / EAN (e.g. 012345678905)">
+<button id="manualLookup" class="secondary">Look up barcode</button>
+</section>
+<section class="panel" aria-label="Format and match">
+<h2>2. Identify your item</h2>
+<label for="medium">Which type of item is this?</label>
+<select id="medium">
+<option value="">Choose a medium…</option>
+<optgroup label="Official music"><option>CD</option><option>Cassette</option><option>Vinyl</option><option>8-Track</option></optgroup>
+<optgroup label="Commercial movies"><option>VHS</option><option>DVD</option><option>Blu-ray</option></optgroup>
+<optgroup label="Blank inventory"><option>Blank CD</option><option>Blank Tape</option></optgroup>
+<optgroup label="Home recordings"><option>Burned CDs</option><option>Mix Tapes</option><option>Home VHS</option><option>Home DVD</option><option>Home Blu-ray</option></optgroup>
+</select>
+<p class="tiny">Choose the physical format, not necessarily the format suggested by an online database. We'll remember it for the current browser session.</p>
+<div id="lookupState" role="status" aria-live="polite" class="sub">Scan a barcode to find matching releases.</div>
+<div id="matches"></div>
+<div id="fallback" class="hidden">
+  <button id="openManual" class="secondary">Enter or correct details manually</button>
+  <p class="tiny">The barcode will be carried over; the inventory app will also try its server-side lookup.</p>
+</div>
+</section>
+<section class="panel"><h2>No barcode?</h2><p class="sub">Promotional records, home tapes, homemade discs, and other oddities are welcome.</p><button id="manualNoCode" class="outline">Add an unbarcoded item</button></section>
+<footer>Barcode scanning happens on your iPhone. Music-release suggestions come from MusicBrainz; artwork comes from Cover Art Archive when available. Final saves require confirmation in your Google Apps Script inventory app. No camera photos are uploaded.</footer>
+</main>
+<script>
+'use strict';
+const APP_URL='https://script.google.com/macros/s/AKfycbx7_374YsXgGsZeWgG2RNyZCE0jM6sI--tkUTIZBj-wnyLnSlw_MPuqVoB9EMhVj1yD/exec';
+const FORMATS=['CD','Cassette','Vinyl','8-Track','VHS','DVD','Blu-ray','Blank CD','Blank Tape','Burned CDs','Mix Tapes','Home VHS','Home DVD','Home Blu-ray'];
+const $=id=>document.getElementById(id);
+let reader=null,scanLock=false,currentBarcode='',results=[],lookupSequence=0;
+function message(t){$('scanState').textContent=t;}
+function cleanBarcode(s){return String(s||'').replace(/\D/g,'').slice(0,24);}
+function equalsBarcode(a,b){a=cleanBarcode(a);b=cleanBarcode(b);return a===b||(a.length===12&&'0'+a===b)||(b.length===12&&'0'+b===a);}
+function medium(){return FORMATS.includes($('medium').value)?$('medium').value:'';}
+function sanitizeId(s){return /^[0-9a-f]{8}-[0-9a-f-]{27,}$/i.test(s||'')?s:'';}
+function words(s,cap=220){return String(s==null?'':s).trim().slice(0,cap);}
+function renderCandidate(item,index){
+ const card=document.createElement('div');card.className='candidate';
+ const s=document.createElement('div');s.className='summary';
+ if(item.mbid){const img=document.createElement('img');img.className='art';img.alt='Cover art (if available)';img.loading='lazy';img.src='https://coverartarchive.org/release/'+encodeURIComponent(item.mbid)+'/front-250';img.onerror=()=>{const fallback=document.createElement('div');fallback.className='noart';fallback.textContent='♫';img.replaceWith(fallback);};s.append(img);}
+ else {const art=document.createElement('div');art.className='noart';art.textContent='♫';s.append(art);}
+ const meta=document.createElement('div');meta.className='meta';
+ const title=document.createElement('h3');title.textContent=item.title||'Untitled release';meta.append(title);
+ const artist=document.createElement('p');artist.textContent=item.artist||'Artist unknown';meta.append(artist);
+ const band=document.createElement('div');band.className='badge';band.textContent=[item.year,item.media].filter(Boolean).join(' · ')||'MusicBrainz match';meta.append(band);
+ const lines=[['Label',item.label],['Catalog #',item.catno],['Country',item.country],['Edition',item.edition]];
+ lines.forEach(([key,val])=>{if(val){const p=document.createElement('p');p.className='field';p.textContent=key+': '+val;meta.append(p);}});
+ s.append(meta);card.append(s);
+ const btn=document.createElement('button');btn.className='matchbtn';btn.textContent='Match & Add';btn.onclick=()=>goToReview(item);card.append(btn);
+ const note=document.createElement('p');note.className='tiny';note.textContent='Opens a prefilled confirmation screen. Nothing is saved until you approve.';card.append(note);
+ return card;
+}
+function renderMatches(list){
+ const area=$('matches');area.replaceChildren();
+ if(!list.length)return;
+ const heading=document.createElement('p');heading.className='sub';heading.textContent=list.length+' possible release '+(list.length===1?'match':'matches')+'. Confirm the correct edition.';area.append(heading);
+ list.forEach((m,i)=>area.append(renderCandidate(m,i)));
+}
+function showFallback(show=true){$('fallback').classList.toggle('hidden',!show);}
+function failLookup(messageText){$('lookupState').innerHTML='';const box=document.createElement('div');box.className='alert';box.textContent=messageText;$('lookupState').append(box);renderMatches([]);showFallback(true);}
+function fromMusicBrainz(r){
+ const li=(r['label-info']||[])[0]||{},media=(r.media||[]).map(x=>x.format||'').filter(Boolean).join(' / ');
+ return {title:words(r.title),artist:words((r['artist-credit']||[]).map(x=>typeof x==='string'?x:x.name||'').join('')),year:words((r.date||'').slice(0,4)),label:words((li.label||{}).name),catno:words(li['catalog-number']),country:words(r.country),edition:words(r.disambiguation),mbid:sanitizeId(r.id),media};
+}
+function sleep(ms){return new Promise(resolve=>setTimeout(resolve,ms));}
+async function musicLookup(code){
+ const variants=[code];if(code.length===12)variants.push('0'+code);else if(code.length===13&&code.startsWith('0'))variants.push(code.substring(1));
+ for(let i=0;i<variants.length;i++){
+   if(i>0)await sleep(1100); // respect public API rate limit
+   const url='https://musicbrainz.org/ws/2/release/?'+new URLSearchParams({query:'barcode:'+variants[i],fmt:'json',limit:'10'});
+   const response=await fetch(url.toString(),{mode:'cors',headers:{'Accept':'application/json'}});
+   if(!response.ok)throw Error('MusicBrainz returned HTTP '+response.status);
+   const data=await response.json();
+   const list=(data.releases||[]).filter(r=>!r.barcode||equalsBarcode(r.barcode,code)).map(fromMusicBrainz);
+   if(list.length)return list;
+ }
+ return [];
+}
+async function lookupBarcode(code){
+ code=cleanBarcode(code);
+ if(!code){message('Enter a barcode or scan one.');return;}
+ currentBarcode=code;scanLock=true;lookupSequence++;
+ const thisLookup=lookupSequence;
+ $('manualBarcode').value=code;$('decodedCode').textContent=code;$('decoded').classList.remove('hidden');
+ renderMatches([]);showFallback(false);
+ if(!medium()){$('lookupState').textContent='Choose the medium above. Looking for music releases…';}
+ else $('lookupState').textContent='Looking up release metadata…';
+ // Blank stock, homemade items and movies currently have no trustworthy open public barcode metadata source.
+ const chosen=medium();
+ if(chosen&&!( ['CD','Cassette','Vinyl','8-Track'].includes(chosen))){
+   failLookup('Barcode captured. Automatic lookup for '+chosen+' is not connected yet; you can add it manually without losing the barcode.');return;
+ }
+ try{
+  const list=await musicLookup(code);
+  if(thisLookup!==lookupSequence)return;
+  results=list;
+  if(list.length){$('lookupState').textContent='Found '+list.length+' possible music release '+(list.length===1?'match.':'matches.');renderMatches(list);showFallback(true);}
+  else failLookup('No verified music-release match for this barcode. You can still enter it manually or use the Google-side lookup.');
+ }catch(e){if(thisLookup!==lookupSequence)return;failLookup('The online music lookup could not be completed ('+(e.message||'network/CORS error')+'). Your barcode was decoded correctly. Continue to the Google confirmation app.');}
+}
+function goToReview(item){
+ const chosen=medium();
+ if(!chosen){$('lookupState').textContent='Choose the physical medium before continuing.';$('medium').focus();return;}
+ try{sessionStorage.setItem('mediaLibraryLastFormat',chosen);}catch(_){}
+ const u=new URL(APP_URL);
+ const fields={barcode:currentBarcode,category:chosen};
+ if(item)Object.assign(fields,{title:item.title,artist:item.artist,year:item.year,label:item.label,catno:item.catno,country:item.country,edition:item.edition,mbid:item.mbid});
+ Object.keys(fields).forEach(k=>{if(fields[k])u.searchParams.set(k,words(fields[k],k==='barcode'?24:220));});
+ window.location.assign(u.toString());
+}
+async function stopCamera(){
+ if(reader){const old=reader;reader=null;try{await old.stop();}catch(_){}try{old.clear();}catch(_){} }
+ $('stopCamera').classList.add('hidden');$('startCamera').classList.remove('hidden');
+}
+$('startCamera').onclick=async()=>{
+ if(!window.isSecureContext)return message('Open the scanner over HTTPS.');
+ if(!window.Html5Qrcode)return message('Scanner library failed to load. Check your connection, then refresh.');
+ await stopCamera();currentBarcode='';scanLock=false;results=[];lookupSequence++;
+ $('decoded').classList.add('hidden');renderMatches([]);showFallback(false);$('lookupState').textContent='Scan a barcode to identify the item.';
+ $('startCamera').classList.add('hidden');message('Requesting camera permission…');
+ try{
+  reader=new Html5Qrcode('reader',{formatsToSupport:[Html5QrcodeSupportedFormats.UPC_A,Html5QrcodeSupportedFormats.UPC_E,Html5QrcodeSupportedFormats.EAN_13,Html5QrcodeSupportedFormats.EAN_8,Html5QrcodeSupportedFormats.CODE_128],verbose:false});
+  await reader.start({facingMode:'environment'},{fps:10,qrbox:{width:260,height:150},aspectRatio:1.333},async code=>{
+   if(scanLock)return;scanLock=true;message('Barcode decoded — checking database…');
+   if(navigator.vibrate)navigator.vibrate(80);
+   await stopCamera();lookupBarcode(code);
+  },()=>{});
+  $('stopCamera').classList.remove('hidden');message('Point your camera at a barcode.');
+ }catch(e){message('Could not open camera: '+(e.message||String(e))+'. Try Safari directly.');await stopCamera();}
+};
+$('stopCamera').onclick=stopCamera;
+$('manualLookup').onclick=async()=>{await stopCamera();lookupBarcode($('manualBarcode').value);};
+$('openManual').onclick=()=>goToReview(null);
+$('manualNoCode').onclick=()=>{currentBarcode='';goToReview(null);};
+$('medium').onchange=()=>{
+ const v=medium();try{if(v)sessionStorage.setItem('mediaLibraryLastFormat',v);}catch(_){}
+ if(currentBarcode&&v&&!['CD','Cassette','Vinyl','8-Track'].includes(v))failLookup('Barcode captured. Automatic lookup for '+v+' is not available; use manual entry.');
+ else if(currentBarcode&&results.length){$('lookupState').textContent='Review the possible matches below.';renderMatches(results);showFallback(true);}
+};
+try{const last=sessionStorage.getItem('mediaLibraryLastFormat');if(FORMATS.includes(last))$('medium').value=last;}catch(_){}
+</script>
+</body></html>
